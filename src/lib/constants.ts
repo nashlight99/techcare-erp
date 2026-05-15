@@ -15,3 +15,31 @@ export const STATUS_LABELS: Record<string, string> = {
   completed: 'Terminé',
   cancelled: 'Annulé',
 }
+
+export const STATUSES = Object.entries(STATUS_LABELS)
+
+export const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrateur',
+  director: 'Directeur',
+  employee: 'Employé',
+}
+
+export const ROLE_COLORS: Record<string, string> = {
+  admin: 'bg-red-50 text-red-600',
+  director: 'bg-purple-50 text-purple-600',
+  employee: 'bg-blue-50 text-blue-600',
+}
+
+export const SUBSCRIPTION_LABELS: Record<string, string> = {
+  none: 'Aucun',
+  high_tech_care: 'High-Tech Care',
+  premium: 'Premium',
+}
+
+export const TAG_LABELS: Record<string, string> = {
+  premium: 'Premium',
+  repair_client: 'Réparation',
+  buyer: 'Acheteur',
+  vip: 'VIP',
+  pro: 'Pro',
+}
