@@ -8,6 +8,7 @@ import {
   Settings, LogOut, Store, ChevronDown, Bell, Sparkles, Menu, X,
 } from 'lucide-react'
 import { ROLE_LABELS, ROLE_COLORS } from '@/lib/constants'
+import { StoreContext } from '@/contexts/store'
 import type { Store as StoreType } from '@/types'
 
 const NAV_GROUPS = [
@@ -213,7 +214,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          {children}
+          <StoreContext.Provider value={activeStore}>
+            {children}
+          </StoreContext.Provider>
         </main>
       </div>
     </div>

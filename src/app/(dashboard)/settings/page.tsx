@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import { User, Store, Users, Shield, ChevronRight } from 'lucide-react'
+import { User, Store, Users, Shield, ChevronRight, Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
 import { ROLE_LABELS, ROLE_COLORS } from '@/lib/constants'
+import { UserModal } from '@/components/users/UserModal'
 import type { User as UserType, Store as StoreType } from '@/types'
 
 export default function SettingsPage() {
@@ -10,18 +11,41 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<UserType[]>([])
   const [stores, setStores] = useState<StoreType[]>([])
   const [loading, setLoading] = useState(true)
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const role = session?.user?.role ?? 'employee'
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/users').then(r => r.ok ? r.json() : []),
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    const [u, s] = await Promise.all([
+      fetch('/api/users?all=true').then(r => r.ok ? r.json() : []),
       fetch('/api/stores').then(r => r.ok ? r.json() : []),
-    ]).then(([u, s]) => {
-      setUsers(Array.isArray(u) ? u : [])
-      setStores(Array.isArray(s) ? s : [])
-    }).finally(() => setLoading(false))
+    ])
+    setUsers(Array.isArray(u) ? u : [])
+    setStores(Array.isArray(s) ? s : [])
+    setLoading(false)
   }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const handleToggleActive = async (user: UserType) => {
+    setTogglingId(user.id)
+    await fetch(`/api/users/${user.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !user.is_active }),
+    })
+    await fetchData()
+    setTogglingId(null)
+  }
+
+  const handleSaved = () => {
+    setShowUserModal(false)
+    setSelectedUser(null)
+    fetchData()
+  }
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -38,7 +62,7 @@ export default function SettingsPage() {
         </div>
         <div className="p-5">
           <div className="flex items-center gap-4 mb-5">
-            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xl">
+            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xl flex-shrink-0">
               {session?.user?.name?.[0]?.toUpperCase() ?? '?'}
             </div>
             <div>
@@ -49,14 +73,14 @@ export default function SettingsPage() {
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-xs text-gray-400 mb-1">Identifiant</p>
               <p className="font-mono text-xs text-gray-600 truncate">{session?.user?.id}</p>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-xs text-gray-400 mb-1">Rôle</p>
-              <p className="text-gray-700 font-medium">{ROLE_LABELS[role]}</p>
+              <p className="text-gray-700 font-medium text-sm">{ROLE_LABELS[role]}</p>
             </div>
           </div>
         </div>
@@ -73,9 +97,7 @@ export default function SettingsPage() {
         </div>
         {loading ? (
           <div className="p-5 space-y-2">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-12 bg-gray-50 rounded-lg animate-pulse" />
-            ))}
+            {[1, 2].map(i => <div key={i} className="h-12 bg-gray-50 rounded-lg animate-pulse" />)}
           </div>
         ) : stores.length === 0 ? (
           <p className="p-5 text-sm text-gray-400">Aucune boutique configurée</p>
@@ -101,21 +123,26 @@ export default function SettingsPage() {
             <div className="flex items-center gap-2">
               <Users size={15} className="text-gray-400" />
               <h2 className="text-sm font-semibold text-gray-900">Utilisateurs</h2>
+              <span className="text-xs text-gray-400">({users.length})</span>
             </div>
-            <span className="text-xs text-gray-400">{users.length} utilisateur{users.length !== 1 ? 's' : ''}</span>
+            <button
+              onClick={() => { setSelectedUser(null); setShowUserModal(true) }}
+              className="btn-primary py-1.5 px-3 text-xs"
+            >
+              <Plus size={13} />Ajouter
+            </button>
           </div>
+
           {loading ? (
             <div className="p-5 space-y-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-14 bg-gray-50 rounded-lg animate-pulse" />
-              ))}
+              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-50 rounded-lg animate-pulse" />)}
             </div>
           ) : users.length === 0 ? (
             <p className="p-5 text-sm text-gray-400">Aucun utilisateur trouvé</p>
           ) : (
             <div className="divide-y divide-gray-50">
-              {users.map((u: UserType) => (
-                <div key={u.id} className="flex items-center gap-3 px-5 py-3.5">
+              {users.map(u => (
+                <div key={u.id} className={`flex items-center gap-3 px-5 py-3.5 ${!u.is_active ? 'opacity-50' : ''}`}>
                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-semibold text-xs flex-shrink-0">
                     {u.full_name?.[0]?.toUpperCase() ?? '?'}
                   </div>
@@ -123,14 +150,29 @@ export default function SettingsPage() {
                     <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
                     <p className="text-xs text-gray-400 truncate">{u.email}</p>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLORS[u.role]}`}>
-                      {ROLE_LABELS[u.role]}
-                    </span>
-                    {!u.is_active && (
-                      <span className="text-xs px-2 py-0.5 bg-red-50 text-red-500 rounded">Inactif</span>
-                    )}
-                  </div>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${ROLE_COLORS[u.role]}`}>
+                    {ROLE_LABELS[u.role]}
+                  </span>
+                  {/* Edit */}
+                  <button
+                    onClick={() => { setSelectedUser(u); setShowUserModal(true) }}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors flex-shrink-0"
+                    title="Modifier"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  {/* Toggle active */}
+                  <button
+                    onClick={() => handleToggleActive(u)}
+                    disabled={togglingId === u.id || u.id === session?.user?.id}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0 disabled:opacity-30"
+                    title={u.is_active ? 'Désactiver' : 'Activer'}
+                  >
+                    {u.is_active
+                      ? <ToggleRight size={18} className="text-green-500" />
+                      : <ToggleLeft size={18} className="text-gray-300" />
+                    }
+                  </button>
                 </div>
               ))}
             </div>
@@ -146,10 +188,10 @@ export default function SettingsPage() {
         </div>
         <div className="divide-y divide-gray-50">
           {[
-            { label: 'Changer le mot de passe',     desc: 'Mettre à jour vos identifiants' },
-            { label: 'Authentification à deux facteurs', desc: 'Renforcer la sécurité du compte' },
+            { label: 'Changer le mot de passe',           desc: 'Mettre à jour vos identifiants' },
+            { label: 'Authentification à deux facteurs',  desc: 'Renforcer la sécurité du compte' },
           ].map(({ label, desc }) => (
-            <button key={label} disabled className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors opacity-50 cursor-not-allowed text-left">
+            <button key={label} disabled className="w-full flex items-center justify-between px-5 py-3.5 opacity-50 cursor-not-allowed text-left">
               <div>
                 <p className="text-sm font-medium text-gray-900">{label}</p>
                 <p className="text-xs text-gray-400">{desc}</p>
@@ -159,6 +201,14 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {showUserModal && (
+        <UserModal
+          user={selectedUser}
+          onClose={() => { setShowUserModal(false); setSelectedUser(null) }}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   )
 }

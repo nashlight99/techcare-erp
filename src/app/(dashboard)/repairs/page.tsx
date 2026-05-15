@@ -1,12 +1,15 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 import { RepairModal } from '@/components/repairs/RepairModal'
 
 import { STATUS_COLORS, STATUS_LABELS, STATUSES } from '@/lib/constants'
+import { useActiveStore } from '@/contexts/store'
 import type { Repair } from '@/types'
 
 export default function RepairsPage() {
+  const activeStore = useActiveStore()
   const [tickets, setTickets] = useState<Repair[]>([])
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
@@ -17,13 +20,18 @@ export default function RepairsPage() {
 
   const fetchTickets = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({ ...(search && { search }), ...(filterStatus && { status: filterStatus }), limit: '40' })
+    const params = new URLSearchParams({
+      ...(search && { search }),
+      ...(filterStatus && { status: filterStatus }),
+      ...(activeStore && { storeId: activeStore.id }),
+      limit: '40',
+    })
     const r = await fetch(`/api/repairs?${params}`)
     const d = await r.json()
     setTickets(d.data ?? [])
     setTotal(d.total ?? 0)
     setLoading(false)
-  }, [search, filterStatus])
+  }, [search, filterStatus, activeStore])
 
   useEffect(() => {
     const t = setTimeout(fetchTickets, 300)
@@ -69,7 +77,11 @@ export default function RepairsPage() {
                 <tbody className="divide-y divide-gray-50">
                   {tickets.map((t: any) => (
                     <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-blue-600">{t.ticket_number}</td>
+                      <td className="px-4 py-3">
+                        <Link href={`/repairs/${t.id}`} className="font-mono text-xs text-blue-600 hover:underline flex items-center gap-1">
+                          {t.ticket_number}<ExternalLink size={11} />
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 text-gray-900">{t.customers?.first_name} {t.customers?.last_name}</td>
                       <td className="px-4 py-3 text-gray-600">{t.device_brand} {t.device_model}</td>
                       <td className="px-4 py-3"><span className={`badge ${STATUS_COLORS[t.status]}`}>{STATUS_LABELS[t.status]}</span></td>
