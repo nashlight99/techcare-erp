@@ -10,16 +10,15 @@ interface InventoryItem {
   name: string
   sku?: string | null
   category?: string | null
-  brand?: string | null
-  model?: string | null
   quantity: number
-  min_quantity: number
-  unit_cost?: number | null
-  sale_price?: number | null
+  low_stock_threshold: number
+  cost_price?: number | null
+  sell_price?: number | null
   store_id?: string | null
   stores?: { name: string } | null
-  notes?: string | null
 }
+
+const CATEGORIES = ['Écrans', 'Batteries', 'Connecteurs', 'Caméras', 'Haut-parleurs', 'Châssis', 'Accessoires', 'Autre']
 
 export default function InventoryPage() {
   const { data: session } = useSession()
@@ -58,14 +57,14 @@ export default function InventoryPage() {
   }, [fetchItems])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer cet article de l\'inventaire ?')) return
+    if (!confirm("Supprimer cet article de l'inventaire ?")) return
     setDeletingId(id)
     await fetch(`/api/inventory/${id}`, { method: 'DELETE' })
     await fetchItems()
     setDeletingId(null)
   }
 
-  const lowStockCount = items.filter(i => i.quantity <= i.min_quantity).length
+  const lowStockCount = items.filter(i => i.quantity <= i.low_stock_threshold).length
 
   return (
     <div className="space-y-5 max-w-6xl">
@@ -79,7 +78,6 @@ export default function InventoryPage() {
         </button>
       </div>
 
-      {/* Low stock alert */}
       {lowStockCount > 0 && !lowStockOnly && (
         <button
           onClick={() => setLowStockOnly(true)}
@@ -92,17 +90,14 @@ export default function InventoryPage() {
         </button>
       )}
 
-      {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48 max-w-xs">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input className="input pl-9" placeholder="Nom, référence, marque..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input className="input pl-9" placeholder="Nom, référence..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="input w-auto" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
           <option value="">Toutes catégories</option>
-          {['Écrans','Batteries','Connecteurs','Caméras','Haut-parleurs','Châssis','Accessoires','Autre'].map(c => (
-            <option key={c} value={c}>{c}</option>
-          ))}
+          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <button
           onClick={() => setLowStockOnly(v => !v)}
@@ -112,7 +107,6 @@ export default function InventoryPage() {
         </button>
       </div>
 
-      {/* Table */}
       <div className="card overflow-hidden">
         {loading ? (
           <div className="divide-y divide-gray-50">
@@ -140,42 +134,32 @@ export default function InventoryPage() {
           </div>
         ) : (
           <>
-            {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    {['Article','Référence','Catégorie','Quantité','Prix achat','Prix vente','Boutique',''].map(h => (
+                    {['Article', 'Référence', 'Catégorie', 'Quantité', 'Prix achat', 'Prix vente', 'Boutique', ''].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {items.map(item => {
-                    const isLow = item.quantity <= item.min_quantity
+                    const isLow = item.quantity <= item.low_stock_threshold
                     return (
                       <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900">{item.name}</p>
-                          {(item.brand || item.model) && (
-                            <p className="text-xs text-gray-400">{item.brand} {item.model}</p>
-                          )}
-                        </td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
                         <td className="px-4 py-3 font-mono text-xs text-gray-500">{item.sku ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-600">{item.category ?? '—'}</td>
                         <td className="px-4 py-3">
                           <span className={`font-semibold ${isLow ? 'text-orange-600' : 'text-gray-900'}`}>
                             {item.quantity}
                           </span>
-                          {isLow && (
-                            <span className="ml-2 inline-flex items-center gap-1 text-xs text-orange-500">
-                              <AlertTriangle size={11} />bas
-                            </span>
-                          )}
+                          {isLow && <span className="ml-2 text-xs text-orange-500">⚠ bas</span>}
                         </td>
-                        <td className="px-4 py-3 text-gray-600">{item.unit_cost != null ? `${item.unit_cost} €` : '—'}</td>
-                        <td className="px-4 py-3 text-gray-600">{item.sale_price != null ? `${item.sale_price} €` : '—'}</td>
-                        <td className="px-4 py-3 text-gray-500 text-xs">{item.stores?.name ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-600">{item.cost_price != null ? `${item.cost_price} €` : '—'}</td>
+                        <td className="px-4 py-3 text-gray-600">{item.sell_price != null ? `${item.sell_price} €` : '—'}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{item.stores?.name ?? '—'}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
                             <button
@@ -202,10 +186,9 @@ export default function InventoryPage() {
               </table>
             </div>
 
-            {/* Mobile cards */}
             <div className="md:hidden divide-y divide-gray-50">
               {items.map(item => {
-                const isLow = item.quantity <= item.min_quantity
+                const isLow = item.quantity <= item.low_stock_threshold
                 return (
                   <div key={item.id} className="px-4 py-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">

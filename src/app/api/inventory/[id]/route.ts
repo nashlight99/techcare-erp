@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   const body = await req.json()
   const { data, error } = await supabaseAdmin
-    .from('inventory')
+    .from('inventory_items')
     .update({ ...body, store_id: body.store_id || null })
     .eq('id', params.id)
     .select('*, stores(id, name)')
@@ -24,7 +24,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (!session || session.user.role === 'employee')
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
-  const { error } = await supabaseAdmin.from('inventory').delete().eq('id', params.id)
+  const { error } = await supabaseAdmin.from('inventory_items').delete().eq('id', params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

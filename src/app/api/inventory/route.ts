@@ -8,25 +8,27 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const search = searchParams.get('search') ?? ''
+  const search   = searchParams.get('search') ?? ''
   const category = searchParams.get('category') ?? ''
-  const storeId = searchParams.get('storeId') ?? ''
+  const storeId  = searchParams.get('storeId') ?? ''
   const lowStock = searchParams.get('lowStock') === 'true'
 
   let query = supabaseAdmin
-    .from('inventory')
+    .from('inventory_items')
     .select('*, stores(id, name)', { count: 'exact' })
     .order('name')
 
-  if (search) query = query.ilike('name', `%${search}%`)
+  if (search)   query = query.ilike('name', `%${search}%`)
   if (category) query = query.eq('category', category)
-  if (storeId) query = query.eq('store_id', storeId)
-  if (lowStock) query = query.lte('quantity', supabaseAdmin.rpc as any)
+  if (storeId)  query = query.eq('store_id', storeId)
 
   const { data, error, count } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const items = lowStock ? (data ?? []).filter((i: any) => i.quantity <= i.min_quantity) : data
+  const items = lowStock
+    ? (data ?? []).filter((i: any) => i.quantity <= i.low_stock_threshold)
+    : data
+
   return NextResponse.json({ data: items, total: lowStock ? items.length : count })
 }
 
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (!body.name) return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
 
   const { data, error } = await supabaseAdmin
-    .from('inventory')
+    .from('inventory_items')
     .insert({ ...body, store_id: body.store_id || null })
     .select('*, stores(id, name)')
     .single()
