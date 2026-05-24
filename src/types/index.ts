@@ -31,16 +31,17 @@ export interface Repair {
   customer_id: string
   customers?: Pick<Customer, 'first_name' | 'last_name'>
   store_id?: string | null
-  assigned_to?: string | null
+  assigned_user_id?: string | null
   device_brand: string
   device_model: string
   serial_number?: string | null
   imei?: string | null
-  problem_description: string
+  issue_description: string
   status: RepairStatus
   estimated_cost?: number | null
   final_cost?: number | null
-  notes?: string | null
+  internal_notes?: string | null
+  completed_at?: string | null
   created_at: string
   updated_at: string
 }

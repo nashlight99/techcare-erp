@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { InventoryModal } from '@/components/inventory/InventoryModal'
 import { useActiveStore } from '@/contexts/store'
 
-interface InventoryItem {
+export interface InventoryItem {
   id: string
   name: string
   sku?: string | null

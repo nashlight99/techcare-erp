@@ -38,9 +38,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'customer_id et issue_description sont requis' }, { status: 400 })
   }
 
+  const { ticket_number: _ignored, ...rest } = body
+  const cleanBody = {
+    ...rest,
+    estimated_cost:   rest.estimated_cost   !== '' ? rest.estimated_cost   ?? null : null,
+    final_cost:       rest.final_cost       !== '' ? rest.final_cost       ?? null : null,
+    store_id:         rest.store_id         !== '' ? rest.store_id         ?? null : null,
+    assigned_user_id: rest.assigned_user_id !== '' ? rest.assigned_user_id ?? null : null,
+  }
   const { data, error } = await supabaseAdmin
     .from('repair_tickets')
-    .insert({ ...body, ticket_number: '' })
+    .insert(cleanBody)
     .select('*, customers(*), stores(*)')
     .single()
 

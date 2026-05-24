@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import { User, Store, Users, Shield, ChevronRight, Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
+import { User, Store, Users, Shield, ChevronRight, Plus, Pencil, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { ROLE_LABELS, ROLE_COLORS } from '@/lib/constants'
 import { UserModal } from '@/components/users/UserModal'
+import { StoreModal } from '@/components/stores/StoreModal'
 import type { User as UserType, Store as StoreType } from '@/types'
 
 export default function SettingsPage() {
@@ -14,6 +15,9 @@ export default function SettingsPage() {
   const [showUserModal, setShowUserModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [showStoreModal, setShowStoreModal] = useState(false)
+  const [selectedStore, setSelectedStore] = useState<StoreType | null>(null)
+  const [deletingStoreId, setDeletingStoreId] = useState<string | null>(null)
 
   const role = session?.user?.role ?? 'employee'
 
@@ -45,6 +49,20 @@ export default function SettingsPage() {
     setShowUserModal(false)
     setSelectedUser(null)
     fetchData()
+  }
+
+  const handleStoreSaved = () => {
+    setShowStoreModal(false)
+    setSelectedStore(null)
+    fetchData()
+  }
+
+  const handleDeleteStore = async (store: StoreType) => {
+    if (!confirm(`Désactiver la boutique "${store.name}" ?`)) return
+    setDeletingStoreId(store.id)
+    await fetch(`/api/stores/${store.id}`, { method: 'DELETE' })
+    await fetchData()
+    setDeletingStoreId(null)
   }
 
   return (
@@ -92,24 +110,59 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2">
             <Store size={15} className="text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900">Boutiques</h2>
+            <span className="text-xs text-gray-400">({stores.length})</span>
           </div>
-          <span className="text-xs text-gray-400">{stores.length} boutique{stores.length !== 1 ? 's' : ''}</span>
+          {role === 'admin' && (
+            <button
+              onClick={() => { setSelectedStore(null); setShowStoreModal(true) }}
+              className="btn-primary py-1.5 px-3 text-xs"
+            >
+              <Plus size={13} />Ajouter
+            </button>
+          )}
         </div>
         {loading ? (
           <div className="p-5 space-y-2">
             {[1, 2].map(i => <div key={i} className="h-12 bg-gray-50 rounded-lg animate-pulse" />)}
           </div>
         ) : stores.length === 0 ? (
-          <p className="p-5 text-sm text-gray-400">Aucune boutique configurée</p>
+          <div className="p-5 text-center">
+            <p className="text-sm text-gray-400 mb-2">Aucune boutique configurée</p>
+            {role === 'admin' && (
+              <button onClick={() => { setSelectedStore(null); setShowStoreModal(true) }} className="text-sm text-blue-600 hover:underline">
+                Créer la première boutique
+              </button>
+            )}
+          </div>
         ) : (
           <div className="divide-y divide-gray-50">
             {stores.map(s => (
-              <div key={s.id} className="flex items-center justify-between px-5 py-3.5">
-                <div>
+              <div key={s.id} className="flex items-center justify-between px-5 py-3.5 gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900">{s.name}</p>
-                  {s.address && <p className="text-xs text-gray-400 mt-0.5">{s.address}</p>}
+                  {s.address && <p className="text-xs text-gray-400 mt-0.5 truncate">{s.address}</p>}
+                  {s.phone && <p className="text-xs text-gray-400 mt-0.5">{s.phone}</p>}
                 </div>
-                <span className="text-xs px-2 py-1 bg-green-50 text-green-600 rounded-full font-medium">Active</span>
+                <span className="text-xs px-2 py-1 bg-green-50 text-green-600 rounded-full font-medium flex-shrink-0">Active</span>
+                {role === 'admin' && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => { setSelectedStore(s); setShowStoreModal(true) }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      title="Modifier"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteStore(s)}
+                      disabled={deletingStoreId === s.id}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30"
+                      title="Désactiver"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -207,6 +260,14 @@ export default function SettingsPage() {
           user={selectedUser}
           onClose={() => { setShowUserModal(false); setSelectedUser(null) }}
           onSaved={handleSaved}
+        />
+      )}
+
+      {showStoreModal && (
+        <StoreModal
+          store={selectedStore}
+          onClose={() => { setShowStoreModal(false); setSelectedStore(null) }}
+          onSaved={handleStoreSaved}
         />
       )}
     </div>
